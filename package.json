@@ -1,0 +1,16 @@
+{
+  "name": "webcrawler-node",
+  "version": "1.0.0",
+  "description": "Project carried out to deepen study on the subject of Web Crawlers",
+  "main": "index.js",
+  "scripts": {
+    "start": "node main.js",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
