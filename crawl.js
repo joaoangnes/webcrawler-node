@@ -1,4 +1,13 @@
-const { JSDOM } = require("jsdom");
+const fs = require("fs");
+const cheerio = require("cheerio");
+
+function delay() {
+  // const min = 1;
+  // const max = 1.5;
+  // const rand = Math.floor(Math.random() * (max - min + 1) + min);
+  // return new Promise((resolve) => setTimeout(resolve, rand * 1000));
+  return 1000;
+}
 
 async function crawlPage(baseURL, currentURL, pages) {
   const baseURLObj = new URL(baseURL);
@@ -24,16 +33,9 @@ async function crawlPage(baseURL, currentURL, pages) {
     const resp = await fetch(currentURL);
 
     if (resp.status > 399) {
-      console.log(
-        `error in fetch with status code: ${resp.status} on page ${currentURL}`
-      );
-      return pages;
-    }
-
-    const contentType = resp.headers.get("content-type");
-    if (!contentType.includes("text/html")) {
-      console.log(
-        `no html response, content type: ${contentType} on page ${currentURL}`
+      fs.appendFileSync(
+        "errors.txt",
+        `error in fetch with status code: ${resp.status} on page ${currentURL}\n`
       );
       return pages;
     }
@@ -43,10 +45,14 @@ async function crawlPage(baseURL, currentURL, pages) {
 
     // Recursive call the crawlPage, to get all pages of the website
     for (const nextURL of nextURLs) {
+      await delay(); // Wait the delay for the next request
       pages = await crawlPage(baseURL, nextURL, pages);
     }
   } catch (error) {
-    console.log(`error in fetch: ${error.message}, on page: ${currentURL}`);
+    fs.appendFileSync(
+      "errors.txt",
+      `error in fetch: ${error.message}, on page: ${currentURL}\n`
+    );
   }
 
   return pages;
@@ -54,24 +60,33 @@ async function crawlPage(baseURL, currentURL, pages) {
 
 function getURLsFromHTML(htmlBody, baseURL) {
   const urls = [];
-  const dom = new JSDOM(htmlBody);
-  const linkElements = dom.window.document.querySelectorAll("a"); // Return links elements
+  const $ = cheerio.load(htmlBody);
+  const linkElements = $("a")
+    .map((i, link) => link.attribs.href)
+    .get();
+
   for (const linkElement of linkElements) {
-    if (linkElement.href.slice(0, 1) === "/") {
+    if (linkElement.slice(0, 1) === "/") {
       // Relative URL
       try {
-        const urlObj = new URL(`${baseURL}${linkElement.href}`);
+        const urlObj = new URL(`${baseURL}${linkElement}`);
         urls.push(urlObj.href);
       } catch (error) {
-        console.log(`error with relative URL: ${error.message}`);
+        fs.appendFileSync(
+          "errors.txt",
+          `error with relative URL ${linkElement}: ${error.message}\n`
+        );
       }
     } else {
       // Absolute URL
       try {
-        const urlObj = new URL(`${linkElement.href}`);
+        const urlObj = new URL(`${linkElement}`);
         urls.push(urlObj.href);
       } catch (error) {
-        console.log(`error with relative URL: ${error.message}`);
+        fs.appendFileSync(
+          "errors.txt",
+          `error with absolute URL ${linkElement}: ${error.message}\n`
+        );
       }
     }
   }
@@ -81,6 +96,11 @@ function getURLsFromHTML(htmlBody, baseURL) {
 function normalizeUrl(urlString) {
   const urlObj = new URL(urlString);
   const hostPath = `${urlObj.hostname}${urlObj.pathname}`;
+  // Check if it's an image url
+  if (urlObj.pathname.match(/\.(jpeg|jpg|gif|png)$/) != null) {
+    return null;
+  }
+
   if (hostPath.length > 0 && hostPath.slice(-1) === "/") {
     return hostPath.slice(0, -1);
   }
