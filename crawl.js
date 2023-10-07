@@ -45,7 +45,7 @@ async function crawlPage(baseURL, currentURL, pages) {
 
     // Recursive call the crawlPage, to get all pages of the website
     for (const nextURL of nextURLs) {
-      await delay(); // Wait the delay for the next request
+      delay(); // Wait the delay for the next request
       pages = await crawlPage(baseURL, nextURL, pages);
     }
   } catch (error) {
